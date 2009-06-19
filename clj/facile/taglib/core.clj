@@ -1,15 +1,8 @@
 (ns clj.facile.taglib.core
-  (:use clj.facile))
+  (:use clj.facile)
+  (import (javax.faces.model SelectItem)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Parameter
-(defn parameter
-  [id name value]
-
-  (widget "javax.faces.Parameter" {:id id, :name name, :value value}))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Input components
+;; Input components ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn input 
   ([id value]
      (input "javax.faces.Input" id value))
@@ -18,7 +11,12 @@
      (widget
        type,
        {:id id,
-	:value value})))
+	:value value}))
+
+  ([type id value attrs]
+     (widget type
+	     (merge attrs {:id id,
+			   :value value}))))
 
 (defn select-boolean
   ([id checked]
@@ -26,25 +24,31 @@
 
   ([type id checked]
      (widget
-      type,
+      type
       {:id id,
        :value checked})))
 
 (defn select-one
-  [id value & items]
+  ([id value items]
+     (select-one "javax.faces.SelectOne" id value items))
+
+  ([type id value items]
      (widget
-      "javax.faces.SelectOne",
+      type
       {:id id,
        :value value},
-      (into [] items)))
+      (if (vector? items) items [items]))))
 
 (defn select-many
-  [id value & items]
-  (widget
-   "javax.faces.SelectMany",
-   {:id id,
-    :value value},
-   (into [] items)))
+  ([id value items]
+      (select-many "javax.faces.SelectMany" id value items))
+
+  ([type id value items]
+     (widget
+      type
+      {:id id,
+       :value value}
+      (if (vector? items) items [items]))))
 
 (defn select-item
   ([label]
@@ -67,17 +71,39 @@
        :itemDescription description,
        :itemDisabled disabled})))
 
-(defn select-items
-  ([val]
-     (select-items "javax.faces.SelectItems" val))
+(defn- select-items-
+  [items]
+  (widget "javax.faces.SelectItems" {:value items}))
 
-  ([type val]
-     (widget
-      type,
-      {:value val})))
+(defmulti select-items type)
+(defmethod select-items java.util.List 
+  [l] 
+  
+  (select-items- (into []
+		       (map (fn [i]
+			      (if (instance? javax.faces.model.SelectItem i)
+				i
+				(let [label (if (instance? clojure.lang.Named 
+							   i) 
+					      (name i) 
+					      i)]
+				  (SelectItem. i label))))
+			    l))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Output components
+(defmethod select-items clojure.lang.Associative
+  [m]
+
+  (select-items- (into [] 
+		       (map (fn [[k v]] 
+			      (SelectItem. v 
+					   (if (instance? clojure.lang.Named k)
+					     (name k) 
+					     k))) 
+			    m))))
+
+(prefer-method select-items java.util.List clojure.lang.Associative)
+
+;; Output components ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn output
   ([id value]
      (output id value nil))
@@ -124,10 +150,12 @@
      (graphic "javax.faces.Graphic" id path))
 
   ([type id path]
-     (widget type {:id id, :value path})))
+     (widget type {:id id, :value path}))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Naming containers
+  ([type id path attrs]
+     (widget type (merge attrs {:id id, :value path}))))
+
+;; Naming containers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn form
   [id & children] 
 
@@ -136,6 +164,9 @@
 	       (into [] children)))
 
 (defn data
+  ([id value]
+     (data id {:value value} nil [] nil))
+
   ([id attrs columns]
      (data id attrs nil columns nil))
 
@@ -156,44 +187,35 @@
 	  {:id id},
 	  (into [] children)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Layout containers
+;; Layout containers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn column
-  ([id]
-     (column "javax.faces.Column" id))
-
-  ([type id]
-     (widget type {:id id})))
+  ([id & children]
+     (widget "javax.faces.Column" {:id id} children)))
 
 (defn panel
-  ([id]
-     (panel "javax.faces.Panel" id))
+  [type id attrs]
+  (widget type (merge attrs {:id id})))
 
-  ([type id]
-     (widget type {:id id})))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Command component
+;; Command component ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn command
   ([id action]
      (command id action false))
 
   ([id value action]
-     (command id value action false))
+     (command id value false action))
   
-  ([id value action immediate]
-     (command "javax.faces.Command" id value action immediate))
+  ([id value immediate? action]
+     (command "javax.faces.Command" id value immediate? action))
 
-  ([type id value action immediate]
+  ([type id value immediate? action]
      (widget
       type,
       {:id id,
        :value value,
        :action action,
-       :immediate immediate})))
+       :immediate immediate?})))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Combinators
+;; Combinators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn facet
   [w facet value]
 
@@ -212,7 +234,7 @@
 
   (facet w "footer" footer))
 
-(defn attributes
+(defn attribs
   [w & keyvals]
 
   (assoc w :attributes
@@ -224,8 +246,19 @@
   
   (assoc w :children (into [] children)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Converters
+;; Parameter ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn param
+  ([id name value]
+     (widget "javax.faces.Parameter" 
+	     {:id id, :name name, :value value}))
+
+  ([w id name value]
+
+     (assoc w :children
+	    (conj (:children w)
+		  (param id name value)))))
+
+;; Converters ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn new-simple-converter
   [converter-id]
 
@@ -330,8 +363,7 @@
 (defn convert-currency [w currency-code]
   (convert-number w :currency-code currency-code))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Validators
+;; Validators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn new-range-validator
   [validator-id min max]
 
@@ -363,7 +395,3 @@
   [w min max]
 
   (range-validator w "javax.faces.LongRange" min max))
-
-	
-
-     
