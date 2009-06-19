@@ -5,19 +5,19 @@
    :state state))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Data Models - for use with UIData components
+;; Seq Data Model - for use with UIData components
 ;;
 ;; Implements the javax.faces.model.DataModel over the Clojure seq abstraction.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn -init []
-  [ [] (ref {:data nil, :rowIndex 0}) ])
+  [ [] (atom {:data nil, :index 0}) ])
 
 ;; Mutator methods
 (defn -setWrappedData 
   [this data]
 
-  (dosync
-   (alter (.state this) assoc :data data, :rowIndex 0)))
+  (swap! (.state this) 
+	 assoc :data data :index 0))
 
 (defn -getWrappedData 
   [this]
@@ -26,10 +26,9 @@
 
 
 (defn -setRowIndex
-  [this rowIndex]
+  [this index]
 
-  (dosync
-   (alter (.state this) assoc :rowIndex rowIndex))
+  (swap! (.state this) assoc :index index)
 
   ;; I think we're supposed to emit a DataModelEvent here(?)
   (if-let [data (:data @(.state this))]
@@ -38,7 +37,7 @@
 (defn -getRowIndex
   [this]
 
-  (:rowIndex @(.state this)))
+  (:index @(.state this)))
 
 
 ;; Data access
@@ -46,12 +45,13 @@
   [this]
 
   (let [data (:data @(.state this)),
-	row-index (:rowIndex @(.state this))]
+	row-index (:index @(.state this))]
     
     (if data
       (if (not (<= 0 row-index (dec (count data))))
 	;; No data at this index
-	(throw (new IllegalArgumentException (str "No data at index: " row-index)))
+	(throw (new IllegalArgumentException 
+		    (str "No data at index: " row-index)))
 
 	;; Return the data
 	(nth data row-index))
@@ -63,7 +63,7 @@
   [this]
 
   (let [data (:data @(.state this)),
-	row-index (:rowIndex @(.state this))]
+	row-index (:index @(.state this))]
     
     (if data
       (if (<= 0 row-index (dec (count data)))
@@ -83,4 +83,3 @@
 	seq-model (new clj.facile.data_model)]
     (.setWrappedData seq-model (seq data))
     seq-model))
-
