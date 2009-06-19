@@ -1,5 +1,6 @@
 package clj.facile;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -17,6 +18,7 @@ import javax.faces.application.ViewHandler;
 import javax.faces.application.StateManager.SerializedView;
 import javax.faces.component.UIComponent;
 import javax.faces.component.UIViewRoot;
+import javax.faces.context.ExternalContext;
 import javax.faces.context.FacesContext;
 import javax.faces.context.ResponseWriter;
 import javax.faces.render.RenderKit;
@@ -34,13 +36,8 @@ public class FacileViewHandler extends ViewHandler {
 	
 	// Clojure fields ////////////////////////////////////////////////////////
 	
-	static final Var facesApp = RT.var("clj.facile", "*faces-app*");
-	static final Var facesContext = RT.var("clj.facile", "*faces-context*");
-	static final Var currentView = RT.var("clj.facile", "*current-view*");
-	static final Var httpSession = RT.var("clj.facile", "*http-session*");
 	static final Var viewId = RT.var("clj.facile", "*view-id*");
 	static final Var viewRoot = RT.var("clj.facile", "*view-root*");
-	static final Var servletContext = RT.var("clj.facile", "*servlet-context*");
 
 	static final Var buildView = RT.var("clj.facile", "build-view");
 
@@ -116,16 +113,10 @@ public class FacileViewHandler extends ViewHandler {
 		log.entering(FacileViewHandler.class.getName(), "createView(ctx=" + ctx + ", requestViewid=" + requestViewId + ")");
 		try {
 
-			final ServletContext servletCtx = (ServletContext)ctx.getExternalContext().getContext();
+			final ExternalContext extCtx = ctx.getExternalContext();
+			final ServletContext servletCtx = (ServletContext)extCtx.getContext();
 			final String filePath = FacileLoader.getPath(servletCtx, qualifiedSymbol);
-			final Object session = ctx.getExternalContext().getSession(false);
-
-			// Bind base vars while we run the 
-			clojure.lang.Var.pushThreadBindings(
-					clojure.lang.RT.map(
-							servletContext, servletCtx,
-							facesApp, ctx.getApplication(),
-							httpSession, ctx.getExternalContext().getSession(true)));
+			final Object session = extCtx.getSession(false);
 
 			// This is a development hack so that we reload the file in case 
 			// the session is null, which usually corresponds to the web 
@@ -137,8 +128,6 @@ public class FacileViewHandler extends ViewHandler {
 		
 			log.finest("viewTemplate=" + viewTemplate);
 			
-			Var.popThreadBindings();
-			
 			// Create the top-level view root
 			final UIViewRoot theView = new UIViewRoot();
 			theView.setViewId(requestViewId);
@@ -146,13 +135,9 @@ public class FacileViewHandler extends ViewHandler {
 			// Establish bindings
 			clojure.lang.Var.pushThreadBindings(
 					clojure.lang.RT.map(
-							servletContext, servletCtx,
-							facesApp, ctx.getApplication(),
-							facesContext, ctx,
-							currentView, viewTemplate.get(),
 							viewId, qualifiedSymbol,
-							viewRoot, theView,
-							httpSession, session));
+							viewRoot, theView
+							));
 			
 			// Build the view
 			buildView.invoke(viewTemplate.get(), theView);

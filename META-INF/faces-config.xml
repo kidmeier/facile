@@ -11,4 +11,7 @@
 		<variable-resolver>clj.facile.ClojureVariableResolver</variable-resolver>
 		<property-resolver>clj.facile.ClojurePropertyResolver</property-resolver>
 	</application>
+	<lifecycle>
+		<phase-listener>clj.facile.FacilePhaseListener</phase-listener>
+	</lifecycle>
 </faces-config>
