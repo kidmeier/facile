@@ -1,7 +1,9 @@
 package clj.facile;
 
 import java.io.File;
+import java.util.logging.Logger;
 
+import javax.faces.application.ViewHandler;
 import javax.faces.context.ExternalContext;
 import javax.faces.context.FacesContext;
 import javax.faces.event.PhaseEvent;
@@ -13,6 +15,8 @@ import clojure.lang.RT;
 import clojure.lang.Var;
 
 public class FacilePhaseListener implements PhaseListener {
+
+	static final Logger log = Logger.getLogger(FacilePhaseListener.class.getName());
 
 	// Clojure fields ////////////////////////////////////////////////////////
 
@@ -33,8 +37,8 @@ public class FacilePhaseListener implements PhaseListener {
 
 	protected void pushBindings(final FacesContext ctx) {
 		
-		System.out.println("Beginning a Faces request, pushing thread bindings");
-		
+		log.entering(FacilePhaseListener.class.getName(), "pushBindings", ctx); 
+
 		final ExternalContext extCtx = ctx.getExternalContext();
 		final ServletContext servletCtx = (ServletContext)extCtx.getContext();
 		
@@ -59,15 +63,18 @@ public class FacilePhaseListener implements PhaseListener {
 						// resolve them.
 						compileFlag, Boolean.TRUE,
 						compilePath, servletCtx.getRealPath("") + File.separatorChar + "WEB-INF"	+ File.separatorChar + "classes"));
+		
+		log.exiting(FacilePhaseListener.class.getName(), "pushBindings");
 	}
 	
 	protected void popBindings() {
-		System.out.println("Done the request, popping bindings");
+		log.entering(FacilePhaseListener.class.getName(), "popBindings");
 		Var.popThreadBindings();
+		log.exiting(FacilePhaseListener.class.getName(), "popBindings");
 	}
 	
 	public void beforePhase(PhaseEvent ev) {
-
+		
 		if( ev.getPhaseId().compareTo(PhaseId.RESTORE_VIEW) == 0 ) {
 			
 			pushBindings(ev.getFacesContext());
