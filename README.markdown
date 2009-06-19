@@ -80,7 +80,7 @@ For example, the view:
 
 Is accessed through URL:
 
-   http://host/contextRoot/facileServlet/foo/bar
+    http://host/contextRoot/facileServlet/foo/bar
 
 In JSF terminology, the view id is taken to be "foo/bar". After resolving the 
 view, the `widget-tree` map is passed into `clj.facile/build-view` which walks

@@ -33,7 +33,7 @@
 
   (.put (.getAttributes widget) attr val))
 
-(defstruct widget-struct
+(defstruct widget-tree
   :type,
   :attributes,
   :converter,
@@ -52,7 +52,7 @@
      (widget type attributes nil [] children facets))
 
   ([type attributes converter validators children facets]
-     (struct widget-struct
+     (struct widget-tree
 	     type,
 	     attributes,
 	     converter,
