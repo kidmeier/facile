@@ -1,22 +1,17 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"><%@page
-	language="java" contentType="text/html; charset=UTF-8"
-	pageEncoding="UTF-8"%>
-	
-<%@taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%><html>
-
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<%@page	language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<html>
 <head>
 	<title>Swank</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-	<meta name="GENERATOR"
-		content="Rational® Application Developer™ for WebSphere® Software">
 </head>
 <body>
-<c:choose>
-	<c:when test="${applicationScope.swankStarted}">
-		<pre>Swank is running on port: ${applicationScope.swankPort}</pre>
-	</c:when>
-	<c:otherwise>
-		<pre>Starting swank: <jsp:scriptlet>
+<%	if( Boolean.TRUE == application.getAttribute("swank-started") ) { %>
+
+		<pre>Swank is running on port: ${applicationScope['swank-port']}</pre>
+		
+<%	} else { %>
+		<pre>Starting swank: <%
 			final String port = (request.getAttribute("port") == null) 
 									? ( (application.getInitParameter("swank-port") == null) 
 										 ? "4005"
@@ -27,12 +22,12 @@
 				"(add-classpath \"file://" + swankPath + "\")\n" +
 				"(require (quote swank.swank) (quote clojure.main))\n" +
 				"(clojure.main/with-bindings\n" +
-				"  (swank.swank/start-server \"nul\" :encoding \"utf-8-unix\" :port " + port + "))\n";
+				"  (swank.swank/start-server \"swank-port\" :encoding \"utf-8-unix\" :port " + port + "))\n";
 			String message = "";
 			try {
 				clojure.lang.Compiler.load(new java.io.StringReader(swankScript));
-				application.setAttribute("swankStarted", Boolean.TRUE);
-				application.setAttribute("swankPort", port);
+				application.setAttribute("swank-started", Boolean.TRUE);
+				application.setAttribute("swank-port", port);
 				message = "success; running on port " + port;
 			} catch( Throwable e ) {
 				final java.io.StringWriter stackTrace = new java.io.StringWriter();
@@ -42,8 +37,7 @@
 				
 				message = "Error starting Swank:\n\n" + stackTrace.toString();
 			}
-			</jsp:scriptlet><%=message%></pre>
-	</c:otherwise>
-</c:choose>
+			%> <%=message%></pre>
+<%	} %>
 </body>
 </html>
