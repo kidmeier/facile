@@ -248,7 +248,7 @@
 	 (into (:children w) children)))
 
 ;; Parameter ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn param
+(defn parameter
   ([id name value]
      (widget "javax.faces.Parameter" 
 	     {:id id, :name name, :value value}))
@@ -257,7 +257,7 @@
 
      (assoc w :children
 	    (conj (:children w)
-		  (param id name value)))))
+		  (parameter id name value)))))
 
 ;; Converters ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn new-simple-converter
