@@ -20,35 +20,6 @@
 (def #^java.util.Map *headers* nil)
 (def #^java.util.Map *headers-multi* nil)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Taglib
-(defmacro deftaglib 
-  "Define a tag library and bind it to the specified symbol. A taglib
-   is just a map whichmaps keywords onto JSF component names, which are
-   instantiated through the JSF application component factory:
-
-     Application.createComponent(java.lang.String componentType)"
-    
-  [sym tags]
-  `(def ~sym (hash-map ~@tags)))
-
-(defmacro compile-class
-  [name]
-
-  (let [qualifiedName (str name),
-	basePath (apply 
-		  str (.getRealPath *servlet-context* "") 
-		  (interpose java.io.File/separator ["WEB-INF" "classes"])),
-	path (str 
-	      (.replace qualifiedName \. java.io.File/separatorChar) ".class"),
-	file (new java.io.File (str basePath path))]
-    
-    ;; Ensure target directory exists
-    (.mkdirs (.getParentFile file))
-  
-    `(binding [*compile-path* ~basePath]
-       (compile ~name))))
-
 ;; Forward decls
 (declare build-view,
 	 build-widget-tree)
