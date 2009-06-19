@@ -1,14 +1,14 @@
 (ns clj.facile.el
   (:use clj.facile)
   (:import 
-   (clojure.lang AFn IPersistentCollection IPersistentList RT Var)
+   (clojure.lang AFn IPersistentCollection IPersistentList Keyword RT Symbol 
+		 Var)
    (javax.faces.component UIComponentBase)
    (javax.faces.context FacesContext)
    (javax.faces.el ValueBinding)
    (clj.facile ClojureVariableResolver)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; JSF Expression Language
+;; Helpers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- mangle
   "Mangle a Clojure identifier into a legal JSF EL identifier"
@@ -17,7 +17,8 @@
   (ClojureVariableResolver/mangleIdent s))
 
 (defn- demangle
-  "De-mangle a legal JSF ELidentifier into the corresponding Clojure identifier"
+  "De-mangle a legal JSF EL identifier into the corresponding Clojure 
+   identifier"
   [s]
   
   (ClojureVariableResolver/unmangleIdent s))
@@ -43,33 +44,45 @@
   (list 'inline-el
 	(reduce (fn [inline expr]
 		  (if (not (instance? IPersistentList expr))
-		    (throw (new IllegalArgumentException (str #'inline-el ": " expr " is not an inline expression")))
-
+		    (throw (new IllegalArgumentException 
+				(str #'inline-el ": "
+				     expr " is not an inline expression")))
+		    
 		    (str inline (second expr))))
 		inline
 		exprs)))
 
-(defmulti #^{:private true} dot-fn class)
-(defmethod dot-fn clojure.lang.Keyword [kw] (str "['" kw "']"))
-(defmethod dot-fn clojure.lang.IPersistentList [l] 
+;; Polymorphic value handlers
+(defmulti #^{:private true
+	     :doc "Generates an EL lookup fragment."} 
+  dot-fn class)
+
+;; Clojure types
+(defmethod dot-fn Keyword [kw] (str "['" kw "']"))
+(defmethod dot-fn IPersistentList [l] 
   (when (not= 'inline-el (first l))
-    (throw (new IllegalArgumentException (str "Form: " l " is an invalid dot-expr."))))
+    (throw (new IllegalArgumentException 
+		(str "Form: " l " is an invalid dot-expr."))))
   (second l))
-(defmethod dot-fn java.lang.String [s] (str "['" s "']"))
+(defmethod dot-fn Var [v] 
+  (str "['" (el-get-ns-name v) "']['" (el-get-var-name v) "']"))
+(defmethod dot-fn Symbol [s] (str "['" s "']"))
+
+;; Java types
+(defmethod dot-fn String [s] (str "['" s "']"))
 (defn- dot-number [n] (str "[" n "]"))
-(defmethod dot-fn java.lang.Byte [b] (dot-number b))
-(defmethod dot-fn java.lang.Integer [i] (dot-number i))
-(defmethod dot-fn java.lang.Long [l] (dot-number l))
-(defmethod dot-fn java.lang.Short [s] (dot-number s))
-(defmethod dot-fn clojure.lang.Var [v] (str "['" (el-get-ns-name v) "']['" (el-get-var-name v) "']"))
-(defmethod dot-fn clojure.lang.Symbol [s] (str "['" s "']"))
-(defmethod dot-fn :default
-  [x]
-  (throw (new IllegalArgumentException (str "Don't know how to handle property: " x))))
+(defmethod dot-fn Byte [b] (dot-number b))
+(defmethod dot-fn Integer [i] (dot-number i))
+(defmethod dot-fn Long [l] (dot-number l))
+(defmethod dot-fn Short [s] (dot-number s))
+
+(defmethod dot-fn :default [x]
+  (throw (new IllegalArgumentException 
+	      (str "Don't know how to handle property: " x))))
 
 (defn dot
-  "Used in conjunction with bind. Returns an inline-el expression that looks up properties
-   of the base variable described by (bind)."
+  "Used in conjunction with bind. Returns an inline-el expression that looks 
+   up properties of the base variable described by (bind)."
   [& props]
 
   ;; We start with the inline-el marker
@@ -110,15 +123,6 @@
 	  (new IllegalArgumentException 
 	       (str #'bind ": can only bind to a Var or Symbol: " val)))))))
   
-(defn bind-session
-  "Create an inline-el expression that refers to the Clojure session map and is extended with a 
-   dot-expr."
-  [& dot-expr]
-
-  ;; Force the session-map into existence
-  (let [_ (session-map-ref)]
-    (bind 'sessionScope (dot clj.facile/SESSION-MAP-KEY (apply dot dot-expr)))))
-		      
 (def el-expr)
 (defn- el-unary-op
   "Return a string corresponding to an application of the unary EL operator 
@@ -165,8 +169,8 @@
 (defn- el-expr
   "Translates the supplied expression into a JSF EL string. Operators are 
    applied with el-unary-op and el-n-ary-op, literals are converted to an 
-   appropriate string within the EL string, inline-el is passed through directly
-   into the string."
+   appropriate string within the EL string, inline-el is passed through 
+   directly into the string."
   [expr]
 
   (cond 
@@ -199,19 +203,19 @@
 	       (str #'el-expr ": Don't know how handle expression: " expr)))))
 	
 (defn el
-  "Create a JSF EL string. Walks over the list of arguments deferring to el-expr
-   to generate appropriate EL strings for the passed in sub-expressions."
+  "Create a JSF EL string. Walks over the list of arguments deferring to 
+   el-expr to generate appropriate EL strings for the passed in 
+   sub-expressions."
   [& args]
 
   (let [el (str "#{" 
 		(reduce (fn [e arg] (str e (el-expr arg))) "" args)
 		"}")]
     (. *faces-app* (createValueBinding el))))
-  
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Bindings
+(def $ el)
 
+;; Bindings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn- bind-view-local [val & dotargs]
 
   (let [key (str (gensym)),
@@ -222,6 +226,7 @@
     (dosync
      (alter (view-locals *view-id*) assoc key val))
 
+    ;; Bind to the locals map
     (bind view-var (apply #'dot :locals key dotargs))))
     
 (defn method-binding 
@@ -237,22 +242,10 @@
    action. The function should take no arguments and return a String."
   [bind-fn]
 
-    (if (var? bind-fn) 
-      ;; Bind to 'var.invoke
-      (method-binding 
-       (bind bind-fn (dot 'invoke))
-       (make-array java.lang.Class 0))
-      
-      (let [fn- (fn [& args] 
-		  (binding [*faces-context* (FacesContext/getCurrentInstance),
-			    *servlet-context* (.getExternalContext *faces-context*),
-			    *http-session* (.getSession (.getExternalContext *faces-context*) true),
-			    *faces-app* (.getApplication *faces-context*)]
-		    (apply bind-fn args)))]
-	
-	(method-binding 
-	 (bind-view-local fn- (dot 'invoke)) 
-	 (make-array java.lang.Class 0)))))
+  ;; Bind to 'var.invoke
+  (method-binding 
+   (bind bind-fn (dot 'invoke))
+   (make-array java.lang.Class 0)))
 
 (defn action-listener 
   "Wraps the given function in a method-binding suitablefor use as a JSF 
@@ -262,13 +255,9 @@
   
   (method-binding bind-fn (into-array [javax.faces.event.ActionEvent]) nil))
 
-(comment  "Create a value binding for a Clojure collection. We generate a new key and
-   insert a mapping into the view-locals map, and finally generate an EL
-   binding to the value.")
-
 (defmethod clj.facile/set-widget-attribute IPersistentCollection
   [#^UIComponentBase widget
-   attr
+   #^String attr
    #^IPersistentCollection val]
 
   (.setValueBinding widget attr (el (bind-view-local val))))
@@ -278,34 +267,29 @@
 
 (defmethod clj.facile/set-widget-attribute Var
   [#^UIComponentBase widget
-   attr
+   #^String attr
    #^Var val]
 
   ;; If the value is a function, create a method-binding
   (if (instance? AFn (var-get val))
-    (.put (.getAttributes widget) attr (method-binding (bind val (dot 'invoke)) nil))
+    (-> (.getAttributes widget) 
+	(.put attr (method-binding (bind val (dot 'invoke)) nil)))
 
     ;; Else bind a reference to the variable
     (.setValueBinding widget attr (el (bind val)))))
 
-(defmethod clj.facile/set-widget-attribute javax.faces.el.ValueBinding 
+(defmethod clj.facile/set-widget-attribute ValueBinding 
   [#^UIComponentBase widget 
-   attr 
+   #^String attr 
    #^ValueBinding val]
   
   (.setValueBinding widget attr val))
 
 (defmethod clj.facile/set-widget-attribute AFn
   [#^UIComponentBase widget
-   attr
+   #^String attr
    #^AFn bind-fn]
   
-  (let [fn- (fn [& args] 
-	      (binding [*faces-context* (FacesContext/getCurrentInstance)]
-		(binding [*servlet-context* (.getExternalContext *faces-context*),
-			  *http-session* (.getSession (.getExternalContext *faces-context*) true),
-			  *faces-app* (.getApplication *faces-context*)]
-		  (apply bind-fn args))))]
-    (.put (.getAttributes widget) attr (method-binding
-					(bind-view-local fn- 'invoke)
-					(make-array java.lang.Class 0)))))
+  (-> (.getAttributes widget) 
+      (.put attr (method-binding (bind-view-local bind-fn 'invoke)
+				 (make-array java.lang.Class 0)))))

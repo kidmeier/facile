@@ -12,11 +12,13 @@
 (def #^javax.faces.application.Application *faces-app* nil)
 (def #^javax.faces.component.UIViewRoot *view-root* nil)
 (def *view-id* nil)
-(def *current-view* nil)
-(def *taglibs* {})
 
-;; Facile data
-(def SESSION-MAP-KEY "clj.facile.session-map")
+;; Scoped data
+(def #^java.util.Map *session-map* nil)
+(def #^java.util.Map *request-map* nil)
+(def #^java.util.Map *cookies* nil)
+(def #^java.util.Map *headers* nil)
+(def #^java.util.Map *headers-multi* nil)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Taglib
@@ -241,38 +243,24 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Scoped data access/storage
 
+(defmacro defsession 
+  [sym value]
+
+  `(let [key# (str (ns-name *ns*) "/" '~sym)]
+     (def ~sym 
+	  (proxy [clojure.lang.IDeref] []
+	    (deref []
+		   (let [current# (.getAttribute *http-session* key#)]
+		     (or current#
+			 (do
+			   (.setAttribute *http-session* key# ~value)
+			   (.getAttribute *http-session* key#)))))))))
+
 (defn view-locals
   [view-id]
 
   (let [[ns sym] (.split view-id "/")]
     (clj.facile.FacileViewHandler/viewLocals ns sym)))
-
-(defn session-map-ref []
-  
-  (if-let [session-ref (.getAttribute *http-session* SESSION-MAP-KEY)]
-    session-ref
-
-    (let [m (ref {})]
-      (.setAttribute *http-session* SESSION-MAP-KEY m)
-      m)))
-
-(defn get-session
-  "Lookup value for 'key in the session map."
-  ([key]
-     (get-session key nil))
-
-  ([key default]
-
-     (or (@(session-map-ref) key)
-	 default)))
-
-(defn put-session
-  "Associate the kay-val pair in the session map."
-
-  [key val]
-
-  (dosync
-   (alter (session-map-ref) assoc key val)))
 
 (defn parm
   [name]
