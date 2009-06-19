@@ -215,7 +215,7 @@
        :action action,
        :immediate immediate?})))
 
-;; Combinators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Combinators ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn facet
   [w facet value]
 
@@ -234,7 +234,7 @@
 
   (facet w "footer" footer))
 
-(defn attribs
+(defn attributes
   [w & keyvals]
 
   (assoc w :attributes
@@ -244,7 +244,8 @@
 (defn children
   [w & children]
   
-  (assoc w :children (into [] children)))
+  (assoc w :children 
+	 (into (:children w) children)))
 
 ;; Parameter ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn param
