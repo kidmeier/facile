@@ -13,7 +13,7 @@ component trees using the standard JSF widgets.
 
 In general, the arguments take the form: 
 
-   [id value & extras]
+   `[id value & extras]`
 
 Where 
       `id` specifies the JSF component id
@@ -122,9 +122,9 @@ and can be used anywhere a value binding is expected:
 
 Evaluating `@name` fetches the corresponding attribute from the session. This
 is a little different from refs in that the level of indirection is two. In the
-example above, `@name` would evaluate to ref itself (e.g. 
-`#<Ref@757d757d: "Enter your name">`), and @@name would evaluate to the value 
-of the ref (i.e. `"Enter your name"`).
+example above, `@name` would evaluate to the ref itself (e.g. 
+`#<Ref@757d757d: "Enter your name">`), and `@@name` would evaluate to the 
+value of the ref (i.e. `"Enter your name"`).
 
 ## Putting it all together
 
@@ -142,28 +142,28 @@ The following example demonstrates some of the concepts introduced above:
     (defview example-form
         (output "output-tst" "An example output control.")
         (form "example-form"
-	      (input "name" #'input-session)
-	      (select-boolean "select-boolean" #'select-boolean-val)
-	      (select-one "example-select-one"
-              		  #'select-one-val
-                    	  (select-items {"Item 0" "Value 0"
-                          		 "Item 1" "Value 1"
-					 "Item 2" "Value 2"
-                                   	 "..." "..."}))
-              (select-many "example-select-many"
-              		   #'select-many-val
-                     	   (select-items {"Item 0" "Value 0"
-                                    	  "Item 1" "Value 1"
-                                    	  "Item 2" "Value 2"
-                                    	  "..." "..."}))
-	      (command "example-cmd-button"
-                       "Command button"
-                       (fn []
-                       	   (println "State:"
-                            	    "\n\tinput:\t" @@input-session
-                            	    "\n\tselect-boolean:\t" @select-boolean-val
-                            	    "\n\tselect-one:\t" @select-one-val
-                            	    "\n\tselect-many:\t" @select-many-val
-                            	    "\n")))))
+            (input "name" #'input-session)
+            (select-boolean "select-boolean" #'select-boolean-val)
+            (select-one "example-select-one"
+                        #'select-one-val
+                        (select-items {"Item 0" "Value 0"
+                                       "Item 1" "Value 1"
+                                       "Item 2" "Value 2"
+                                       "..." "..."}))
+            (select-many "example-select-many"
+                         #'select-many-val
+                        (select-items {"Item 0" "Value 0"
+                                       "Item 1" "Value 1"
+                                       "Item 2" "Value 2"
+                                       "..." "..."}))
+            (command "example-cmd-button"
+                     "Command button"
+                     (fn [] 
+                         (println "State:"
+                                  "\n\tinput:\t" @@input-session
+                            	  "\n\tselect-boolean:\t" @select-boolean-val
+                            	  "\n\tselect-one:\t" @select-one-val
+                            	  "\n\tselect-many:\t" @select-many-val
+                            	  "\n")))))
 
 
